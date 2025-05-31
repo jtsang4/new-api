@@ -1,6 +1,63 @@
 package dto
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+)
+
+// FlexibleTimestamp is a custom type that can unmarshal both integer and floating-point timestamps
+// It automatically truncates floating-point values to integers for compatibility
+type FlexibleTimestamp int64
+
+// UnmarshalJSON implements custom JSON unmarshaling for FlexibleTimestamp
+func (ft *FlexibleTimestamp) UnmarshalJSON(data []byte) error {
+	// Handle null values
+	if string(data) == "null" {
+		*ft = FlexibleTimestamp(0)
+		return nil
+	}
+
+	// Try to unmarshal as integer first (most common case)
+	var intVal int64
+	if err := json.Unmarshal(data, &intVal); err == nil {
+		*ft = FlexibleTimestamp(intVal)
+		return nil
+	}
+
+	// If integer unmarshaling fails, try as float64
+	var floatVal float64
+	if err := json.Unmarshal(data, &floatVal); err == nil {
+		// Truncate the floating-point value to get the integer part
+		*ft = FlexibleTimestamp(int64(floatVal))
+		return nil
+	}
+
+	// If both fail, try as string (edge case)
+	var strVal string
+	if err := json.Unmarshal(data, &strVal); err == nil {
+		if parsedFloat, err := strconv.ParseFloat(strVal, 64); err == nil {
+			*ft = FlexibleTimestamp(int64(parsedFloat))
+			return nil
+		}
+		if parsedInt, err := strconv.ParseInt(strVal, 10, 64); err == nil {
+			*ft = FlexibleTimestamp(parsedInt)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("cannot unmarshal %s into FlexibleTimestamp", string(data))
+}
+
+// MarshalJSON implements custom JSON marshaling for FlexibleTimestamp
+func (ft FlexibleTimestamp) MarshalJSON() ([]byte, error) {
+	return json.Marshal(int64(ft))
+}
+
+// Int64 returns the timestamp as int64
+func (ft FlexibleTimestamp) Int64() int64 {
+	return int64(ft)
+}
 
 type SimpleResponse struct {
 	Usage `json:"usage"`
@@ -10,7 +67,7 @@ type SimpleResponse struct {
 type TextResponse struct {
 	Id      string                     `json:"id"`
 	Object  string                     `json:"object"`
-	Created int64                      `json:"created"`
+	Created FlexibleTimestamp          `json:"created"`
 	Model   string                     `json:"model"`
 	Choices []OpenAITextResponseChoice `json:"choices"`
 	Usage   `json:"usage"`
@@ -26,7 +83,7 @@ type OpenAITextResponse struct {
 	Id      string                     `json:"id"`
 	Model   string                     `json:"model"`
 	Object  string                     `json:"object"`
-	Created int64                      `json:"created"`
+	Created FlexibleTimestamp          `json:"created"`
 	Choices []OpenAITextResponseChoice `json:"choices"`
 	Error   *OpenAIError               `json:"error,omitempty"`
 	Usage   `json:"usage"`
@@ -109,7 +166,7 @@ type FunctionResponse struct {
 type ChatCompletionsStreamResponse struct {
 	Id                string                                `json:"id"`
 	Object            string                                `json:"object"`
-	Created           int64                                 `json:"created"`
+	Created           FlexibleTimestamp                     `json:"created"`
 	Model             string                                `json:"model"`
 	SystemFingerprint *string                               `json:"system_fingerprint"`
 	Choices           []ChatCompletionsStreamResponseChoice `json:"choices"`

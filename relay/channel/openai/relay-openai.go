@@ -152,7 +152,7 @@ func OaiStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 	err := common.DecodeJsonStr(lastStreamData, &lastStreamResponse)
 	if err == nil {
 		responseId = lastStreamResponse.Id
-		createAt = lastStreamResponse.Created
+		createAt = lastStreamResponse.Created.Int64()
 		systemFingerprint = lastStreamResponse.GetSystemFingerprint()
 		model = lastStreamResponse.Model
 		if service.ValidUsage(lastStreamResponse.Usage) {
